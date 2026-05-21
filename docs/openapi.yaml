@@ -1,0 +1,384 @@
+openapi: 3.0.3
+info:
+  title: AI Image Recognition API
+  description: |
+    AI-powered image recognition API using Amazon Rekognition.
+    
+    ## Features
+    - **Celebrity Recognition**: Identify famous people with Wikipedia bios
+    - **Object & Scene Detection**: Detect objects, scenes, and activities
+    
+    ## Authentication
+    - Website users (rekognition.fozdigitalz.com): No API key required
+    - External API users: Include `x-api-key` header with your API key
+  version: 1.0.0
+  contact:
+    name: API Support
+    url: https://rekognition.fozdigitalz.com
+
+servers:
+  - url: https://oxa9vjcw2d.execute-api.eu-west-2.amazonaws.com
+    description: Production server
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /upload:
+    post:
+      summary: Get presigned upload URL
+      description: Request a presigned URL to upload an image directly to S3
+      operationId: getUploadUrl
+      tags:
+        - Upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadRequest'
+            examples:
+              celebrity:
+                summary: Celebrity recognition
+                value:
+                  filename: photo.jpg
+                  contentType: image/jpeg
+                  mode: celebrity
+              labels:
+                summary: Object detection
+                value:
+                  filename: scene.png
+                  contentType: image/png
+                  mode: labels
+      responses:
+        '200':
+          description: Presigned URL generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /results:
+    get:
+      summary: Get all results
+      description: Retrieve all recognition results (most recent first)
+      operationId: getAllResults
+      tags:
+        - Results
+      responses:
+        '200':
+          description: List of results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResultsList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /results/{imageId}:
+    get:
+      summary: Get single result
+      description: Retrieve a specific recognition result by image ID
+      operationId: getResult
+      tags:
+        - Results
+      parameters:
+        - $ref: '#/components/parameters/ImageId'
+      responses:
+        '200':
+          description: Recognition result
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CelebrityResult'
+                  - $ref: '#/components/schemas/LabelsResult'
+                  - $ref: '#/components/schemas/ProcessingResult'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    delete:
+      summary: Delete result
+      description: Delete a recognition result and its associated image
+      operationId: deleteResult
+      tags:
+        - Results
+      parameters:
+        - $ref: '#/components/parameters/ImageId'
+      responses:
+        '200':
+          description: Result deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: API key for external access
+
+  parameters:
+    ImageId:
+      name: imageId
+      in: path
+      required: true
+      description: Unique image identifier
+      schema:
+        type: string
+        example: "20240101-120000-abc123"
+
+  schemas:
+    UploadRequest:
+      type: object
+      required:
+        - filename
+        - contentType
+      properties:
+        filename:
+          type: string
+          description: Original filename (used for extension)
+          example: photo.jpg
+        contentType:
+          type: string
+          enum: [image/jpeg, image/png]
+          description: MIME type of the image
+          example: image/jpeg
+        mode:
+          type: string
+          enum: [celebrity, labels]
+          default: celebrity
+          description: Recognition mode
+
+    UploadResponse:
+      type: object
+      properties:
+        uploadUrl:
+          type: string
+          format: uri
+          description: Presigned S3 URL for uploading
+        imageId:
+          type: string
+          description: Unique identifier for tracking results
+        key:
+          type: string
+          description: S3 object key
+
+    ResultsList:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResultSummary'
+        count:
+          type: integer
+
+    ResultSummary:
+      type: object
+      properties:
+        imageId:
+          type: string
+        status:
+          type: string
+          enum: [processing, completed, error]
+        mode:
+          type: string
+          enum: [celebrity, labels]
+        timestamp:
+          type: string
+          format: date-time
+        imageUrl:
+          type: string
+          format: uri
+
+    CelebrityResult:
+      type: object
+      properties:
+        imageId:
+          type: string
+        status:
+          type: string
+          enum: [completed]
+        mode:
+          type: string
+          enum: [celebrity]
+        timestamp:
+          type: string
+          format: date-time
+        imageUrl:
+          type: string
+          format: uri
+        result:
+          type: object
+          properties:
+            celebrities:
+              type: array
+              items:
+                $ref: '#/components/schemas/Celebrity'
+            unrecognizedFaces:
+              type: integer
+
+    Celebrity:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Elon Musk
+        confidence:
+          type: number
+          format: float
+          example: 99.5
+        urls:
+          type: array
+          items:
+            type: string
+            format: uri
+        knownFor:
+          type: object
+          properties:
+            summary:
+              type: string
+            wikiUrl:
+              type: string
+              format: uri
+        boundingBox:
+          $ref: '#/components/schemas/BoundingBox'
+
+    LabelsResult:
+      type: object
+      properties:
+        imageId:
+          type: string
+        status:
+          type: string
+          enum: [completed]
+        mode:
+          type: string
+          enum: [labels]
+        timestamp:
+          type: string
+          format: date-time
+        imageUrl:
+          type: string
+          format: uri
+        result:
+          type: object
+          properties:
+            labels:
+              type: array
+              items:
+                $ref: '#/components/schemas/Label'
+            labelCount:
+              type: integer
+
+    Label:
+      type: object
+      properties:
+        name:
+          type: string
+          example: Dog
+        confidence:
+          type: number
+          format: float
+          example: 98.7
+        categories:
+          type: array
+          items:
+            type: string
+        parents:
+          type: array
+          items:
+            type: string
+
+    ProcessingResult:
+      type: object
+      properties:
+        imageId:
+          type: string
+        status:
+          type: string
+          enum: [processing]
+        message:
+          type: string
+          example: Image is being analyzed...
+
+    BoundingBox:
+      type: object
+      properties:
+        Width:
+          type: number
+          format: float
+        Height:
+          type: number
+          format: float
+        Left:
+          type: number
+          format: float
+        Top:
+          type: number
+          format: float
+
+    DeleteResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        imageId:
+          type: string
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "Invalid request. Missing required field: filename"
+
+    Unauthorized:
+      description: Unauthorized - API key required or invalid
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+          example:
+            message: Unauthorized
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Result not found
+
+tags:
+  - name: Upload
+    description: Image upload operations
+  - name: Results
+    description: Recognition results operations
