@@ -45,3 +45,10 @@ variable "lambda_memory" {
   type        = number
   default     = 256
 }
+
+variable "admin_secret" {
+  description = "Admin secret for API key management (keep this secure!)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}

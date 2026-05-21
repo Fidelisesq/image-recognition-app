@@ -61,6 +61,25 @@ resource "aws_dynamodb_table" "results" {
 }
 
 # ============================================
+# DynamoDB Table for API Keys
+# ============================================
+resource "aws_dynamodb_table" "api_keys" {
+  name         = "${var.project_name}-api-keys"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "keyHash"
+
+  attribute {
+    name = "keyHash"
+    type = "S"
+  }
+
+  tags = {
+    Name    = "${var.project_name}-api-keys"
+    Project = var.project_name
+  }
+}
+
+# ============================================
 # S3 Bucket for Image Uploads
 # ============================================
 resource "aws_s3_bucket" "images" {
@@ -211,9 +230,13 @@ resource "aws_iam_role_policy" "lambda_policy" {
           "dynamodb:GetItem",
           "dynamodb:Query",
           "dynamodb:Scan",
-          "dynamodb:DeleteItem"
+          "dynamodb:DeleteItem",
+          "dynamodb:UpdateItem"
         ]
-        Resource = aws_dynamodb_table.results.arn
+        Resource = [
+          aws_dynamodb_table.results.arn,
+          aws_dynamodb_table.api_keys.arn
+        ]
       },
       {
         Effect = "Allow"
@@ -351,6 +374,70 @@ resource "aws_lambda_function" "results" {
 }
 
 # ============================================
+# Lambda: API Authorizer
+# ============================================
+data "archive_file" "authorizer_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/lambda_packages/authorizer"
+  output_path = "${path.module}/authorizer.zip"
+}
+
+resource "aws_lambda_function" "authorizer" {
+  filename         = data.archive_file.authorizer_zip.output_path
+  function_name    = "${var.project_name}-authorizer"
+  role             = aws_iam_role.lambda_role.arn
+  handler          = "lambda_function.lambda_handler"
+  source_code_hash = data.archive_file.authorizer_zip.output_base64sha256
+  runtime          = "python3.11"
+  timeout          = 5
+  memory_size      = 128
+
+  environment {
+    variables = {
+      API_KEYS_TABLE  = aws_dynamodb_table.api_keys.name
+      ALLOWED_ORIGINS = "https://${var.domain_name},http://localhost:3000,http://localhost:5500"
+    }
+  }
+
+  tags = {
+    Name    = "${var.project_name}-authorizer"
+    Project = var.project_name
+  }
+}
+
+# ============================================
+# Lambda: API Keys Management
+# ============================================
+data "archive_file" "api_keys_zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/lambda_packages/api_keys"
+  output_path = "${path.module}/api_keys.zip"
+}
+
+resource "aws_lambda_function" "api_keys" {
+  filename         = data.archive_file.api_keys_zip.output_path
+  function_name    = "${var.project_name}-api-keys"
+  role             = aws_iam_role.lambda_role.arn
+  handler          = "lambda_function.lambda_handler"
+  source_code_hash = data.archive_file.api_keys_zip.output_base64sha256
+  runtime          = "python3.11"
+  timeout          = 10
+  memory_size      = 128
+
+  environment {
+    variables = {
+      API_KEYS_TABLE = aws_dynamodb_table.api_keys.name
+      ADMIN_SECRET   = var.admin_secret
+    }
+  }
+
+  tags = {
+    Name    = "${var.project_name}-api-keys"
+    Project = var.project_name
+  }
+}
+
+# ============================================
 # API Gateway
 # ============================================
 resource "aws_apigatewayv2_api" "api" {
@@ -358,9 +445,9 @@ resource "aws_apigatewayv2_api" "api" {
   protocol_type = "HTTP"
 
   cors_configuration {
-    allow_origins = ["https://${var.domain_name}", "http://localhost:3000", "http://localhost:5500"]
+    allow_origins = ["https://${var.domain_name}", "http://localhost:3000", "http://localhost:5500", "*"]
     allow_methods = ["GET", "POST", "DELETE", "OPTIONS"]
-    allow_headers = ["Content-Type", "Authorization"]
+    allow_headers = ["Content-Type", "Authorization", "x-api-key", "x-admin-secret"]
     max_age       = 300
   }
 
@@ -381,6 +468,28 @@ resource "aws_apigatewayv2_stage" "api" {
   }
 }
 
+# ============================================
+# API Gateway Authorizer
+# ============================================
+resource "aws_apigatewayv2_authorizer" "api_key_authorizer" {
+  api_id                            = aws_apigatewayv2_api.api.id
+  authorizer_type                   = "REQUEST"
+  authorizer_uri                    = aws_lambda_function.authorizer.invoke_arn
+  identity_sources                  = ["$request.header.x-api-key", "$request.header.origin", "$request.header.referer"]
+  name                              = "api-key-authorizer"
+  authorizer_payload_format_version = "2.0"
+  authorizer_result_ttl_in_seconds  = 0
+  enable_simple_responses           = true
+}
+
+resource "aws_lambda_permission" "authorizer_api" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.authorizer.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
+}
+
 # Presign endpoint
 resource "aws_apigatewayv2_integration" "presign" {
   api_id                 = aws_apigatewayv2_api.api.id
@@ -390,9 +499,11 @@ resource "aws_apigatewayv2_integration" "presign" {
 }
 
 resource "aws_apigatewayv2_route" "presign" {
-  api_id    = aws_apigatewayv2_api.api.id
-  route_key = "POST /upload"
-  target    = "integrations/${aws_apigatewayv2_integration.presign.id}"
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "POST /upload"
+  target             = "integrations/${aws_apigatewayv2_integration.presign.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.api_key_authorizer.id
 }
 
 resource "aws_lambda_permission" "presign_api" {
@@ -412,27 +523,69 @@ resource "aws_apigatewayv2_integration" "results" {
 }
 
 resource "aws_apigatewayv2_route" "results_list" {
-  api_id    = aws_apigatewayv2_api.api.id
-  route_key = "GET /results"
-  target    = "integrations/${aws_apigatewayv2_integration.results.id}"
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "GET /results"
+  target             = "integrations/${aws_apigatewayv2_integration.results.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.api_key_authorizer.id
 }
 
 resource "aws_apigatewayv2_route" "results_get" {
-  api_id    = aws_apigatewayv2_api.api.id
-  route_key = "GET /results/{imageId}"
-  target    = "integrations/${aws_apigatewayv2_integration.results.id}"
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "GET /results/{imageId}"
+  target             = "integrations/${aws_apigatewayv2_integration.results.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.api_key_authorizer.id
 }
 
 resource "aws_apigatewayv2_route" "results_delete" {
-  api_id    = aws_apigatewayv2_api.api.id
-  route_key = "DELETE /results/{imageId}"
-  target    = "integrations/${aws_apigatewayv2_integration.results.id}"
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "DELETE /results/{imageId}"
+  target             = "integrations/${aws_apigatewayv2_integration.results.id}"
+  authorization_type = "CUSTOM"
+  authorizer_id      = aws_apigatewayv2_authorizer.api_key_authorizer.id
 }
 
 resource "aws_lambda_permission" "results_api" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.results.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
+}
+
+# ============================================
+# API Keys Management Endpoints (Admin only)
+# ============================================
+resource "aws_apigatewayv2_integration" "api_keys" {
+  api_id                 = aws_apigatewayv2_api.api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.api_keys.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "api_keys_create" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "POST /api-keys"
+  target    = "integrations/${aws_apigatewayv2_integration.api_keys.id}"
+}
+
+resource "aws_apigatewayv2_route" "api_keys_list" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /api-keys"
+  target    = "integrations/${aws_apigatewayv2_integration.api_keys.id}"
+}
+
+resource "aws_apigatewayv2_route" "api_keys_revoke" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "DELETE /api-keys/{keyId}"
+  target    = "integrations/${aws_apigatewayv2_integration.api_keys.id}"
+}
+
+resource "aws_lambda_permission" "api_keys_api" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.api_keys.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
 }
