@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Documentation - AI Image Recognition</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+        
+        /* Custom header */
+        .api-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .api-header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .api-header a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+        
+        .api-header a:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.5);
+        }
+        
+        /* Swagger UI customizations */
+        .swagger-ui .topbar {
+            display: none;
+        }
+        
+        .swagger-ui .info {
+            margin: 30px 0;
+        }
+        
+        .swagger-ui .info .title {
+            color: #667eea;
+        }
+        
+        .swagger-ui .opblock.opblock-post {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+        
+        .swagger-ui .opblock.opblock-post .opblock-summary-method {
+            background: #667eea;
+        }
+        
+        .swagger-ui .opblock.opblock-get {
+            border-color: #11998e;
+            background: rgba(17, 153, 142, 0.1);
+        }
+        
+        .swagger-ui .opblock.opblock-get .opblock-summary-method {
+            background: #11998e;
+        }
+        
+        .swagger-ui .opblock.opblock-delete {
+            border-color: #dc3545;
+            background: rgba(220, 53, 69, 0.1);
+        }
+        
+        .swagger-ui .opblock.opblock-delete .opblock-summary-method {
+            background: #dc3545;
+        }
+        
+        .swagger-ui .btn.execute {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+        
+        .swagger-ui .btn.execute:hover {
+            background: linear-gradient(135deg, #5a6fd6 0%, #6a4190 100%);
+        }
+        
+        .swagger-ui section.models {
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+        }
+        
+        .swagger-ui section.models h4 {
+            color: #667eea;
+        }
+        
+        /* Footer */
+        .api-footer {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        .api-footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        
+        .api-footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="api-header">
+        <h1>📚 API Documentation</h1>
+        <a href="index.html">← Back to App</a>
+    </div>
+    
+    <!-- Swagger UI Container -->
+    <div id="swagger-ui"></div>
+    
+    <!-- Footer -->
+    <div class="api-footer">
+        <p>Need an API key? Contact us at <a href="mailto:support@fozdigitalz.com">support@fozdigitalz.com</a></p>
+        <p style="opacity: 0.7; font-size: 0.9rem; margin-top: 0.5rem;">
+            Powered by AWS | <a href="index.html">AI Image Recognition</a>
+        </p>
+    </div>
+
+    <script src="https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js"></script>
+    <script>
+        window.onload = function() {
+            // OpenAPI spec embedded directly
+            const spec = {
+                "openapi": "3.0.3",
+                "info": {
+                    "title": "AI Image Recognition API",
+                    "description": "AI-powered image recognition API using Amazon Rekognition.\n\n## Features\n- **Celebrity Recognition**: Identify famous people with Wikipedia bios\n- **Object & Scene Detection**: Detect objects, scenes, and activities\n\n## Authentication\n- **Website users** (rekognition.fozdigitalz.com): No API key required\n- **External API users**: Include `x-api-key` header with your API key\n\n## Getting Started\n1. Request an API key by contacting support\n2. Include the key in your requests: `x-api-key: rk_your_key_here`\n3. Upload images and get AI-powered recognition results!",
+                    "version": "1.0.0",
+                    "contact": {
+                        "name": "API Support",
+                        "url": "https://rekognition.fozdigitalz.com",
+                        "email": "support@fozdigitalz.com"
+                    }
+                },
+                "servers": [
+                    {
+                        "url": "https://oxa9vjcw2d.execute-api.eu-west-2.amazonaws.com",
+                        "description": "Production server"
+                    }
+                ],
+                "security": [{"ApiKeyAuth": []}],
+                "paths": {
+                    "/upload": {
+                        "post": {
+                            "summary": "Get presigned upload URL",
+                            "description": "Request a presigned URL to upload an image directly to S3. After receiving the URL, use PUT to upload your image file.",
+                            "operationId": "getUploadUrl",
+                            "tags": ["Upload"],
+                            "requestBody": {
+                                "required": true,
+                                "content": {
+                                    "application/json": {
+                                        "schema": {"$ref": "#/components/schemas/UploadRequest"},
+                                        "examples": {
+                                            "celebrity": {
+                                                "summary": "Celebrity recognition",
+                                                "value": {"filename": "photo.jpg", "contentType": "image/jpeg", "mode": "celebrity"}
+                                            },
+                                            "labels": {
+                                                "summary": "Object detection",
+                                                "value": {"filename": "scene.png", "contentType": "image/png", "mode": "labels"}
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            "responses": {
+                                "200": {
+                                    "description": "Presigned URL generated successfully",
+                                    "content": {
+                                        "application/json": {
+                                            "schema": {"$ref": "#/components/schemas/UploadResponse"}
+                                        }
+                                    }
+                                },
+                                "400": {"$ref": "#/components/responses/BadRequest"},
+                                "401": {"$ref": "#/components/responses/Unauthorized"}
+                            }
+                        }
+                    },
+                    "/results": {
+                        "get": {
+                            "summary": "Get all results",
+                            "description": "Retrieve all recognition results (most recent first)",
+                            "operationId": "getAllResults",
+                            "tags": ["Results"],
+                            "responses": {
+                                "200": {
+                                    "description": "List of results",
+                                    "content": {
+                                        "application/json": {
+                                            "schema": {"$ref": "#/components/schemas/ResultsList"}
+                                        }
+                                    }
+                                },
+                                "401": {"$ref": "#/components/responses/Unauthorized"}
+                            }
+                        }
+                    },
+                    "/results/{imageId}": {
+                        "get": {
+                            "summary": "Get single result",
+                            "description": "Retrieve a specific recognition result by image ID",
+                            "operationId": "getResult",
+                            "tags": ["Results"],
+                            "parameters": [{"$ref": "#/components/parameters/ImageId"}],
+                            "responses": {
+                                "200": {
+                                    "description": "Recognition result",
+                                    "content": {
+                                        "application/json": {
+                                            "schema": {
+                                                "oneOf": [
+                                                    {"$ref": "#/components/schemas/CelebrityResult"},
+                                                    {"$ref": "#/components/schemas/LabelsResult"},
+                                                    {"$ref": "#/components/schemas/ProcessingResult"}
+                                                ]
+                                            }
+                                        }
+                                    }
+                                },
+                                "404": {"$ref": "#/components/responses/NotFound"},
+                                "401": {"$ref": "#/components/responses/Unauthorized"}
+                            }
+                        },
+                        "delete": {
+                            "summary": "Delete result",
+                            "description": "Delete a recognition result and its associated image",
+                            "operationId": "deleteResult",
+                            "tags": ["Results"],
+                            "parameters": [{"$ref": "#/components/parameters/ImageId"}],
+                            "responses": {
+                                "200": {
+                                    "description": "Result deleted successfully",
+                                    "content": {
+                                        "application/json": {
+                                            "schema": {"$ref": "#/components/schemas/DeleteResponse"}
+                                        }
+                                    }
+                                },
+                                "404": {"$ref": "#/components/responses/NotFound"},
+                                "401": {"$ref": "#/components/responses/Unauthorized"}
+                            }
+                        }
+                    }
+                },
+                "components": {
+                    "securitySchemes": {
+                        "ApiKeyAuth": {
+                            "type": "apiKey",
+                            "in": "header",
+                            "name": "x-api-key",
+                            "description": "API key for external access. Website users don't need this."
+                        }
+                    },
+                    "parameters": {
+                        "ImageId": {
+                            "name": "imageId",
+                            "in": "path",
+                            "required": true,
+                            "description": "Unique image identifier (returned from upload endpoint)",
+                            "schema": {"type": "string", "example": "20240101-120000-abc123"}
+                        }
+                    },
+                    "schemas": {
+                        "UploadRequest": {
+                            "type": "object",
+                            "required": ["filename", "contentType"],
+                            "properties": {
+                                "filename": {"type": "string", "description": "Original filename", "example": "photo.jpg"},
+                                "contentType": {"type": "string", "enum": ["image/jpeg", "image/png"], "description": "MIME type", "example": "image/jpeg"},
+                                "mode": {"type": "string", "enum": ["celebrity", "labels"], "default": "celebrity", "description": "Recognition mode"}
+                            }
+                        },
+                        "UploadResponse": {
+                            "type": "object",
+                            "properties": {
+                                "uploadUrl": {"type": "string", "format": "uri", "description": "Presigned S3 URL for uploading"},
+                                "imageId": {"type": "string", "description": "Unique identifier for tracking results"},
+                                "key": {"type": "string", "description": "S3 object key"}
+                            }
+                        },
+                        "ResultsList": {
+                            "type": "object",
+                            "properties": {
+                                "results": {"type": "array", "items": {"$ref": "#/components/schemas/ResultSummary"}},
+                                "count": {"type": "integer"}
+                            }
+                        },
+                        "ResultSummary": {
+                            "type": "object",
+                            "properties": {
+                                "imageId": {"type": "string"},
+                                "status": {"type": "string", "enum": ["processing", "completed", "error"]},
+                                "mode": {"type": "string", "enum": ["celebrity", "labels"]},
+                                "timestamp": {"type": "string", "format": "date-time"},
+                                "imageUrl": {"type": "string", "format": "uri"}
+                            }
+                        },
+                        "CelebrityResult": {
+                            "type": "object",
+                            "properties": {
+                                "imageId": {"type": "string"},
+                                "status": {"type": "string", "enum": ["completed"]},
+                                "mode": {"type": "string", "enum": ["celebrity"]},
+                                "timestamp": {"type": "string", "format": "date-time"},
+                                "imageUrl": {"type": "string", "format": "uri"},
+                                "result": {
+                                    "type": "object",
+                                    "properties": {
+                                        "celebrities": {"type": "array", "items": {"$ref": "#/components/schemas/Celebrity"}},
+                                        "unrecognizedFaces": {"type": "integer"}
+                                    }
+                                }
+                            }
+                        },
+                        "Celebrity": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string", "example": "Elon Musk"},
+                                "confidence": {"type": "number", "format": "float", "example": 99.5},
+                                "urls": {"type": "array", "items": {"type": "string", "format": "uri"}},
+                                "knownFor": {
+                                    "type": "object",
+                                    "properties": {
+                                        "summary": {"type": "string"},
+                                        "wikiUrl": {"type": "string", "format": "uri"}
+                                    }
+                                }
+                            }
+                        },
+                        "LabelsResult": {
+                            "type": "object",
+                            "properties": {
+                                "imageId": {"type": "string"},
+                                "status": {"type": "string", "enum": ["completed"]},
+                                "mode": {"type": "string", "enum": ["labels"]},
+                                "timestamp": {"type": "string", "format": "date-time"},
+                                "imageUrl": {"type": "string", "format": "uri"},
+                                "result": {
+                                    "type": "object",
+                                    "properties": {
+                                        "labels": {"type": "array", "items": {"$ref": "#/components/schemas/Label"}},
+                                        "labelCount": {"type": "integer"}
+                                    }
+                                }
+                            }
+                        },
+                        "Label": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string", "example": "Dog"},
+                                "confidence": {"type": "number", "format": "float", "example": 98.7},
+                                "categories": {"type": "array", "items": {"type": "string"}},
+                                "parents": {"type": "array", "items": {"type": "string"}}
+                            }
+                        },
+                        "ProcessingResult": {
+                            "type": "object",
+                            "properties": {
+                                "imageId": {"type": "string"},
+                                "status": {"type": "string", "enum": ["processing"]},
+                                "message": {"type": "string", "example": "Image is being analyzed..."}
+                            }
+                        },
+                        "DeleteResponse": {
+                            "type": "object",
+                            "properties": {
+                                "message": {"type": "string"},
+                                "imageId": {"type": "string"}
+                            }
+                        },
+                        "Error": {
+                            "type": "object",
+                            "properties": {
+                                "error": {"type": "string"}
+                            }
+                        }
+                    },
+                    "responses": {
+                        "BadRequest": {
+                            "description": "Bad request",
+                            "content": {
+                                "application/json": {
+                                    "schema": {"$ref": "#/components/schemas/Error"},
+                                    "example": {"error": "Invalid request. Missing required field: filename"}
+                                }
+                            }
+                        },
+                        "Unauthorized": {
+                            "description": "Unauthorized - API key required or invalid",
+                            "content": {
+                                "application/json": {
+                                    "schema": {"type": "object", "properties": {"message": {"type": "string"}}},
+                                    "example": {"message": "Unauthorized"}
+                                }
+                            }
+                        },
+                        "NotFound": {
+                            "description": "Resource not found",
+                            "content": {
+                                "application/json": {
+                                    "schema": {"$ref": "#/components/schemas/Error"},
+                                    "example": {"error": "Result not found"}
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": [
+                    {"name": "Upload", "description": "Image upload operations"},
+                    {"name": "Results", "description": "Recognition results operations"}
+                ]
+            };
+
+            window.ui = SwaggerUIBundle({
+                spec: spec,
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIBundle.SwaggerUIStandalonePreset
+                ],
+                layout: "BaseLayout",
+                defaultModelsExpandDepth: 1,
+                defaultModelExpandDepth: 1,
+                docExpansion: "list",
+                filter: true,
+                showExtensions: true,
+                showCommonExtensions: true
+            });
+        };
+    </script>
+</body>
+</html>
