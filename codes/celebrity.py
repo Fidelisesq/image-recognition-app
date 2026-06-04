@@ -141,7 +141,7 @@ def lambda_handler(event, context):
             print(f"    [Fetching Wikipedia bio...]")
             wiki_bio = get_wikipedia_summary(celeb_name)
             if wiki_bio:
-                print(f"\n    📖 BIOGRAPHY:")
+                print(f"\n    BIOGRAPHY:")
                 # Word wrap the bio for better readability
                 words = wiki_bio.split()
                 line = "       "
@@ -154,7 +154,7 @@ def lambda_handler(event, context):
                 if line.strip():
                     print(line)
             else:
-                print(f"    📖 Biography not available on Wikipedia")
+                print(f"    Biography not available on Wikipedia")
             
             if urls:
                 print(f"\n    🔗 More info: {urls[0]}")

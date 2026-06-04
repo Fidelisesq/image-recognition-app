@@ -22,3 +22,7 @@ Thumbs.db
 # Environment
 .env
 .env.local
+
+# article & video
+article.md
+script.md
