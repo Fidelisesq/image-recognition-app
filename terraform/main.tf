@@ -254,8 +254,6 @@ resource "aws_lambda_function" "processor" {
   timeout          = var.lambda_timeout
   memory_size      = var.lambda_memory
 
-  reserved_concurrent_executions = 10
-
   environment {
     variables = {
       DYNAMODB_TABLE = aws_dynamodb_table.results.name
