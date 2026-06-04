@@ -254,6 +254,8 @@ resource "aws_lambda_function" "processor" {
   timeout          = var.lambda_timeout
   memory_size      = var.lambda_memory
 
+  reserved_concurrent_executions = 10
+
   environment {
     variables = {
       DYNAMODB_TABLE = aws_dynamodb_table.results.name
@@ -374,6 +376,11 @@ resource "aws_apigatewayv2_stage" "api" {
   api_id      = aws_apigatewayv2_api.api.id
   name        = "$default"
   auto_deploy = true
+
+  default_route_settings {
+    throttling_burst_limit = 50
+    throttling_rate_limit  = 20
+  }
 
   tags = {
     Name    = "${var.project_name}-api-stage"

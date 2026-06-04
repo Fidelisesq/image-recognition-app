@@ -25,6 +25,17 @@ def lambda_handler(event, context):
         content_type = body.get('contentType', 'image/jpeg')
         mode = body.get('mode', 'celebrity')  # 'celebrity' or 'labels'
         
+        # Validate content type
+        if content_type not in ['image/jpeg', 'image/png']:
+            return {
+                'statusCode': 400,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*'
+                },
+                'body': json.dumps({'error': 'Only JPEG and PNG images are supported'})
+            }
+        
         # Validate mode
         if mode not in ['celebrity', 'labels']:
             mode = 'celebrity'
@@ -37,7 +48,7 @@ def lambda_handler(event, context):
         # Include mode in path: uploads/{mode}/{imageId}.{ext}
         object_key = f"uploads/{mode}/{image_id}.{ext}"
         
-        # Generate presigned URL (valid for 5 minutes)
+        # Generate presigned URL (valid for 5 minutes, max 5MB)
         presigned_url = s3_client.generate_presigned_url(
             'put_object',
             Params={
@@ -45,7 +56,8 @@ def lambda_handler(event, context):
                 'Key': object_key,
                 'ContentType': content_type
             },
-            ExpiresIn=300
+            ExpiresIn=300,
+            HttpMethod='PUT'
         )
         
         return {

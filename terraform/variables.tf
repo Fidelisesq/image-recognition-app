@@ -19,13 +19,11 @@ variable "domain_name" {
 variable "hosted_zone_id" {
   description = "Route53 hosted zone ID"
   type        = string
-  default     = "Z053615514X9UZZVP030H"
 }
 
 variable "certificate_arn" {
   description = "ACM certificate ARN (must be in us-east-1 for CloudFront)"
   type        = string
-  default     = "arn:aws:acm:us-east-1:211125602758:certificate/697cf89b-9931-435f-a5f0-c8fd98a6ecdc"
 }
 
 variable "lambda_code_file" {
