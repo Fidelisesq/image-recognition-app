@@ -1,0 +1,117 @@
+name: Deploy Infrastructure
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Select action to perform'
+        required: true
+        type: choice
+        options:
+          - deploy
+          - destroy
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: eu-west-2
+  TF_WORKING_DIR: terraform
+
+jobs:
+  deploy:
+    name: Terraform Deploy/Destroy
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ${{ env.TF_WORKING_DIR }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::211125602758:role/github-platform-actions-oidc
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ">=1.5.0"
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Determine action
+        id: action
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "action=${{ github.event.inputs.action }}" >> $GITHUB_OUTPUT
+          elif echo "${{ github.event.head_commit.message }}" | grep -qi "destroy"; then
+            echo "action=destroy" >> $GITHUB_OUTPUT
+          else
+            echo "action=deploy" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Terraform Plan
+        if: steps.action.outputs.action == 'deploy'
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        if: steps.action.outputs.action == 'deploy'
+        run: terraform apply -auto-approve tfplan
+
+      - name: Get Terraform Outputs
+        if: steps.action.outputs.action == 'deploy'
+        id: tf_outputs
+        run: |
+          echo "api_endpoint=$(terraform output -raw api_endpoint)" >> $GITHUB_OUTPUT
+          echo "website_bucket=$(terraform output -raw website_bucket)" >> $GITHUB_OUTPUT
+          echo "cloudfront_id=$(terraform output -raw cloudfront_distribution_id)" >> $GITHUB_OUTPUT
+
+      - name: Inject API endpoint into config.js
+        if: steps.action.outputs.action == 'deploy'
+        working-directory: ${{ github.workspace }}/website
+        run: |
+          API_URL="${{ steps.tf_outputs.outputs.api_endpoint }}"
+          sed -i "s|__API_ENDPOINT__|${API_URL}|g" config.js
+          echo "Injected API endpoint: ${API_URL}"
+          cat config.js
+
+      - name: Deploy website to S3
+        if: steps.action.outputs.action == 'deploy'
+        working-directory: ${{ github.workspace }}/website
+        run: |
+          aws s3 sync . s3://${{ steps.tf_outputs.outputs.website_bucket }}/ --delete
+
+      - name: Invalidate CloudFront cache
+        if: steps.action.outputs.action == 'deploy'
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ steps.tf_outputs.outputs.cloudfront_id }} \
+            --paths "/*"
+
+      - name: Terraform Destroy
+        if: steps.action.outputs.action == 'destroy'
+        run: terraform destroy -auto-approve
+
+      - name: Summary
+        run: |
+          if [ "${{ steps.action.outputs.action }}" == "deploy" ]; then
+            echo "## ✅ Deployment Successful" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- **Website**: https://rekognition.fozdigitalz.com" >> $GITHUB_STEP_SUMMARY
+            echo "- **API**: ${{ steps.tf_outputs.outputs.api_endpoint }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **CloudFront ID**: ${{ steps.tf_outputs.outputs.cloudfront_id }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## 🗑️ Infrastructure Destroyed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All resources have been removed." >> $GITHUB_STEP_SUMMARY
+          fi

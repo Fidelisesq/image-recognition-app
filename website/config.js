@@ -1,9 +1,9 @@
-// Configuration - This file will be updated after Terraform deployment
-// Replace API_ENDPOINT with your actual API Gateway URL
+// Configuration - Auto-populated by CI/CD pipeline
+// Do NOT hardcode values here - they are injected during deployment
 
 const CONFIG = {
-    // API Gateway endpoint (update after terraform apply)
-    API_ENDPOINT: 'https://oxa9vjcw2d.execute-api.eu-west-2.amazonaws.com',
+    // API Gateway endpoint (injected by GitHub Actions during deployment)
+    API_ENDPOINT: '__API_ENDPOINT__',
     
     // Polling interval for checking results (milliseconds)
     POLL_INTERVAL: 2000,
