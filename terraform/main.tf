@@ -2,9 +2,9 @@ terraform {
   required_version = ">= 1.0"
 
   backend "s3" {
-    bucket = "fozdigitalz-terraform-state"
+    bucket = "foz-terraform-state-bucket"
     key    = "image-recognition/terraform.tfstate"
-    region = "eu-west-2"
+    region = "us-east-1"
   }
 
   required_providers {
@@ -23,15 +23,9 @@ terraform {
   }
 }
 
-# Main provider for eu-west-2
+# Main provider for us-east-1
 provider "aws" {
   region = var.aws_region
-}
-
-# Provider for us-east-1 (required for CloudFront)
-provider "aws" {
-  alias  = "us_east_1"
-  region = "us-east-1"
 }
 
 # Get current AWS account ID

@@ -18,7 +18,7 @@ permissions:
   contents: read
 
 env:
-  AWS_REGION: eu-west-2
+  AWS_REGION: us-east-1
   TF_WORKING_DIR: terraform
 
 jobs:
@@ -105,13 +105,13 @@ jobs:
       - name: Summary
         run: |
           if [ "${{ steps.action.outputs.action }}" == "deploy" ]; then
-            echo "## ✅ Deployment Successful" >> $GITHUB_STEP_SUMMARY
+            echo "## Deployment Successful" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "- **Website**: https://rekognition.fozdigitalz.com" >> $GITHUB_STEP_SUMMARY
             echo "- **API**: ${{ steps.tf_outputs.outputs.api_endpoint }}" >> $GITHUB_STEP_SUMMARY
             echo "- **CloudFront ID**: ${{ steps.tf_outputs.outputs.cloudfront_id }}" >> $GITHUB_STEP_SUMMARY
           else
-            echo "## 🗑️ Infrastructure Destroyed" >> $GITHUB_STEP_SUMMARY
+            echo "## Infrastructure Destroyed" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "All resources have been removed." >> $GITHUB_STEP_SUMMARY
           fi

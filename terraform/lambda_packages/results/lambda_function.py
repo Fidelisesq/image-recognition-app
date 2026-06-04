@@ -8,10 +8,10 @@ dynamodb = boto3.resource('dynamodb')
 
 # Use regional endpoint for CORS compatibility
 s3_config = Config(
-    region_name='eu-west-2',
+    region_name='us-east-1',
     s3={'addressing_style': 'virtual'}
 )
-s3_client = boto3.client('s3', config=s3_config, region_name='eu-west-2')
+s3_client = boto3.client('s3', config=s3_config, region_name='us-east-1')
 
 TABLE_NAME = os.environ.get('DYNAMODB_TABLE')
 BUCKET_NAME = os.environ.get('BUCKET_NAME')
